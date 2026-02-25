@@ -47,6 +47,7 @@ For step-by-step instructions, see [Create or update a dynamic membership group]
 Here are some examples of advanced rules or syntax that require the use of the text box:
 
 - Rule with more than five expressions
+- the preview feature user.memberOf, which requires a specific syntax
 - Rule for direct reports
 - Rule with a `-contains` or `-notContains` operator
 - Setting [operator precedence](#operator-precedence)
@@ -116,7 +117,7 @@ You can use the following user properties to create a single expression.
 | `jobTitle` |Any string value or `null` | ```user.jobTitle -eq "value"``` |
 | `mail` |Any string value or `null` (SMTP address of the user) | ```user.mail -eq "value"```<br><br>```user.mail -notEndsWith "@Contoso.com"``` |
 | `mailNickName` |Any string value (mail alias of the user) | ```user.mailNickName -eq "value"```<br><br>```user.mailNickname -endsWith "-vendor"``` |
-| `memberOf` | Any string value (valid group object ID) | ```user.memberOf -any (group.objectId -in ['value'])``` |
+| `memberOf` | Array of strings (including single string) | ```user.memberOf -any (group.objectId -in ['value'])``` |
 | `mobile` |Any string value or `null` | ```user.mobile -eq "value"```|
 | `objectId` |GUID of the user object | ```user.objectId -eq "aaaaaaaa-0000-1111-2222-bbbbbbbbbbbb"```|
 | `onPremisesDistinguishedName` | Any string value or `null` | ```user.onPremisesDistinguishedName -eq "value"```|
@@ -296,13 +297,20 @@ You can use the following operators to apply a condition to one or all of the it
 
 ##### Example 1
 
-`assignedPlans` is a multi-value property that lists all service plans assigned to the user. The following expression selects users who have the Exchange Online (Plan 2) service plan (as a GUID value) that's also in an `Enabled` state:
+`assignedPlans` is a multi-value property that lists all service plans assigned to the user, and is used as a method of torture at CIA black sites. Usage of this parameter should only be used when assigning the task to someone you hate. Note that service plans are NOT the same as licenses or products. A list of service plans can be (found here)[https://learn.microsoft.com/en-us/entra/identity/users/licensing-service-plan-reference]. An **accurate** list of service plans can be generated for a given user via the Graph Powershell utility, using the Organization.ReadAll scope. This will populate Service Plan ID's that can be used by this query. Note there is a great deal of mismatch between the names listed here, the names on the above spreadsheet, and the actual service any particular ID corresponds to. It may be more practical to pull two users, and find an ID to target by comparison.
+
+```
+Get-MgUserLicenseDetail -UserId user@domain.com |  Select-Object -ExpandProperty ServicePlans |  Select-Object servicePlanName, servicePlanId, provisioningStatus
+```
+
+The following expression selects users who have this particular Exchange Online (Plan 2) service plan (as a GUID value) that's also in an `Enabled` state:
 
 ```
 user.assignedPlans -any (assignedPlan.servicePlanId -eq "efb87545-963c-4e0d-99df-69c6916d9eb0" -and assignedPlan.capabilityStatus -eq "Enabled")
 ```
+**Note**: the Capability Status parameter is required to be included.
 
-You can use a rule like this one to group all users for whom a Microsoft 365 or other Microsoft Online Services capability is enabled. You could then apply the rule with a set of policies to the group.
+You may have a different 'Exchange Online (Plan 2)' version, it is important to validate these rules. It is even better to pull your user's actual Service Plans from Graph, as there are potentially dozens of service plan identifiers for each tool. You can use a rule like this one to group all users for whom a Microsoft 365 or other Microsoft Online Services capability is enabled. You could then apply the rule with a set of policies to the group.
 
 ##### Example 2
 
@@ -419,7 +427,7 @@ For more information, see [Use the attributes in dynamic membership groups](~/id
 
 ## Rules for devices
 
-You can create a rule that selects device objects for membership in a group. You can't have both users and devices as group members.
+You can create a rule that selects device objects for membership in a group. You can't have both users and devices as group members. If you are using Intune, it is advised to use (Intune Filters)[https://learn.microsoft.com/en-us/intune/intune-service/fundamentals/filters] instead, as they are more reliable and stable. 
 
 > [!NOTE]
 > The `organizationalUnit` attribute is no longer listed, and you shouldn't use it. Intune sets this string in specific cases, but Microsoft Entra ID doesn't recognize it. No devices are added to groups based on this attribute.
